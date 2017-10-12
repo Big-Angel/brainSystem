@@ -1,9 +1,15 @@
+import os
+
 from bot import Bot
 from flask import Flask, request
 
 app = Flask(__name__)
 bots = {}
-bot1 = Bot('../cfgs/huarui')
+bots_factor = {}
+
+# TODO 加载所有话术内容，key-value: '话术编号':'话术bot'
+for filename in os.listdir('../cfgs/'):
+    bots_factor[filename] = Bot('../cfgs/'+filename)
 
 
 @app.route("/goon")
@@ -34,8 +40,7 @@ def start():
     bot = ''
     # todo 添加话术参数，为后来的多种话术进行铺垫
     trick = request.args.get("trick")
-    if trick == 'huarui':
-        bot = bot1.reset()
+    bot = bots_factor[trick].reset()
 
     session = request.args.get("session")
     if session is None:
