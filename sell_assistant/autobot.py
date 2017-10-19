@@ -9,7 +9,12 @@ bots_factor = {}
 
 # TODO 加载所有话术内容，key-value: '话术编号':'话术bot'
 for filename in os.listdir('../cfgs/'):
-    bots_factor[filename] = Bot('../cfgs/'+filename)
+    bots_factor[filename] = Bot('../cfgs/' + filename)
+
+
+@app.route("/version")
+def version():
+    return "v1.0.1"
 
 
 @app.route("/goon")
@@ -36,8 +41,6 @@ def reply():
 
 @app.route("/start")
 def start():
-    global bot1
-    bot = ''
     # todo 添加话术参数，为后来的多种话术进行铺垫
     trick = request.args.get("trick")
     bot = bots_factor[trick].reset()
