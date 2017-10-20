@@ -1,3 +1,5 @@
 *.csv
 *.log
 .ide
+.idea*
+__pycache__/

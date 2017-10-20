@@ -13,4 +13,5 @@ if __name__ == '__main__':
         state, sentence = bot.answer(user_input)
         print(state, sentence)
         if '结束' in state:
+            print(bot.get_label())
             break
