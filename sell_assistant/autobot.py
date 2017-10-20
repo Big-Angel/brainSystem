@@ -14,7 +14,7 @@ for filename in os.listdir('../cfgs/'):
 
 @app.route("/version")
 def version():
-    return "v1.0.1"
+    return "v1.0.2"
 
 
 @app.route("/goon")
