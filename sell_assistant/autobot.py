@@ -2,8 +2,11 @@ import os
 
 from bot import Bot
 from flask import Flask, request
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
+
 bots = {}
 bots_factor = {}
 
@@ -14,7 +17,7 @@ for filename in os.listdir('../cfgs/'):
 
 @app.route("/version")
 def version():
-    return "v1.0.2"
+    return "v1.0.3"
 
 
 @app.route("/goon")
