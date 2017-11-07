@@ -2,10 +2,10 @@
 import os
 import zipfile
 
-
 from bot import Bot
 from flask import Flask, request
 from flask_cors import CORS
+import _thread
 
 app = Flask(__name__)
 CORS(app)
@@ -95,7 +95,7 @@ def update():
         zfile = zipfile.ZipFile(zip_file, 'r')
         finame = zfile.namelist()[0]
         if zip_file.filename.split('.')[0] != finame.split('/')[0]:
-            finame= finame.encode("cp437").decode("utf-8")
+            finame = finame.encode("cp437").decode("utf-8")
 
         for fname in zfile.namelist():
             if zip_file.filename.split('.')[0] != fname.split('/')[0]:
@@ -103,20 +103,24 @@ def update():
             else:
                 fname1 = fname
             if fname1.find('__MACOSX') < 0:
-                pathname = os.path.dirname(cfgs+fname1)
+                pathname = os.path.dirname(cfgs + fname1)
                 if not os.path.exists(pathname) and pathname != "":
                     os.makedirs(pathname)
                 data = zfile.read(fname)
-                if not os.path.exists(cfgs+fname1):
+                if not os.path.exists(cfgs + fname1):
                     fo = open(fname1, "wb")
                     fo.write(data)
                     fo.close
         zfile.close()
-        if os.path.exists(cfgs+finame):
-            bots_factor[finame] = Bot(cfgs + finame)
+        if os.path.exists(cfgs + finame):
+            _thread.start_new(updatebot, finame)
         return "successful"
     else:
         return 'not zip'
+
+
+def updatebot(finame):
+    bots_factor[finame] = Bot(cfgs + finame)
 
 
 if __name__ == '__main__':
