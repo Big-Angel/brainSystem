@@ -5,6 +5,7 @@ import zipfile
 from bot import Bot
 from flask import Flask, request
 from flask_cors import CORS
+from utils.hashcode import get_hash_code
 import _thread
 
 app = Flask(__name__)
@@ -90,36 +91,34 @@ def start():
 @app.route("/update", methods=['POST'])
 def update():
     zip_file = request.files["file"]
-    fname1 = ''
     if zip_file.filename.split('.')[1] == 'zip':
         zfile = zipfile.ZipFile(zip_file, 'r')
-        finame = zfile.namelist()[0]
-        if zip_file.filename.split('.')[0] != finame.split('/')[0]:
-            finame = finame.encode("cp437").decode("utf-8")
-
+        finame = zfile.namelist()[0].split('/')[0].encode("cp437").decode("utf-8")
         for fname in zfile.namelist():
-            if zip_file.filename.split('.')[0] != fname.split('/')[0]:
+            if fname.find('.DS_Store') < 0 and fname.find('__MACOSX') < 0:
                 fname1 = fname.encode("cp437").decode("utf-8")
-            else:
-                fname1 = fname
-            if fname1.find('__MACOSX') < 0:
                 pathname = os.path.dirname(cfgs + fname1)
                 if not os.path.exists(pathname) and pathname != "":
                     os.makedirs(pathname)
                 data = zfile.read(fname)
-                if not os.path.exists(cfgs + fname1):
-                    fo = open(fname1, "wb")
-                    fo.write(data)
-                    fo.close
+                fo = open(cfgs + fname1, "wb")
+                fo.write(data)
+                fo.close()
         zfile.close()
         if os.path.exists(cfgs + finame):
-            _thread.start_new(updatebot, finame)
-        return "successful"
+            try:
+                _thread.start_new(update_bot, finame)
+            except Exception as e:
+                print(e)
+        return str({'state': "successful",
+                    'sentence': "上传成功"})
+
     else:
-        return 'not zip'
+        return str({'state': 'error',
+                    'sentence': 'not zip'})
 
 
-def updatebot(finame):
+def update_bot(finame):
     bots_factor[finame] = Bot(cfgs + finame)
 
 
