@@ -1,6 +1,10 @@
 # -*- coding:utf-8 -*-
+import csv
+import json
 import os
 import zipfile
+import datetime
+from flask import Response
 
 from bot import Bot
 from flask import Flask, request
@@ -120,6 +124,54 @@ def update():
 
 def update_bot(finame):
     bots_factor[finame] = Bot(cfgs + finame)
+
+
+@app.route("/getDialogRecord")
+def check_dialog_record():
+    response = Response()
+    trick = request.args.get("trick")
+    if trick is None:
+        return str({
+            "state": "error",
+            "sentence": "parameter [trick] not exist."
+        })
+    file_names = os.listdir(cfgs)
+    if trick not in file_names:
+        return str({
+            "state": "error",
+            "sentence": "not exist [trick]."
+        })
+    else:
+        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file_info = {}
+        writer = csv.writer(response.stream)
+        fileHeader = ['场景', '话术文本', '录音名']
+        writer.writerow(fileHeader)
+        for file in domain_file:
+            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+                data = json.load(json_file)
+                for k, v in data.items():
+                    stage = file.split('.')[0] + '' + k
+                    sentence = v['sentence']
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    domain_file_info.update({stage: sentence})
+                    writer.writerow([stage, sentence, name])
+            json_file.close()
+        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+            data = json.load(qa)
+            for k, v in data.items():
+                stage1 = 'qa' + k
+                sentence1 = v['sentence']
+                for k, v in domain_file_info.items():
+                    stage = stage1 + k
+                    sentence = sentence1 + v
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    writer.writerow([stage, sentence, name])
+        qa.close()
+    response.mimetype = 'text/csv'
+    response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                               datetime.datetime.today().strftime('%Y%m%d') + '.csv'}
+    return response
 
 
 if __name__ == '__main__':

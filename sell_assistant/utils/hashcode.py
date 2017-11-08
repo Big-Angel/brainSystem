@@ -6,7 +6,7 @@ __author__ = 'Dhyana'
 
 def convert_n_bytes(n, b):
     bits = b * 8
-    return (n + 2 ** (bits - 1)) % 2 ** bits - 2 ** (bits - 1)
+    return str((n + 2 ** (bits - 1)) % 2 ** bits - 2 ** (bits - 1))
 
 
 def convert_4_bytes(n):
