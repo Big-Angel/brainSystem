@@ -14,7 +14,7 @@ for filename in os.listdir('../cfgs/'):
 
 @app.route("/version")
 def version():
-    return "v1.0.1"
+    return "v1.0.4"
 
 
 @app.route("/goon")
@@ -31,6 +31,7 @@ def reply():
     state, sentence = bots[session].answer(user_input)
 
     if '结束' in state:
+        print("level:" + bots[session].get_label())
         bots.pop(session)
 
     return str({
