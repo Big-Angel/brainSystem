@@ -102,17 +102,19 @@ def update():
         for fname in zfile.namelist():
             if fname.find('.DS_Store') < 0 and fname.find('__MACOSX') < 0:
                 fname1 = fname.encode("cp437").decode("utf-8")
-                pathname = os.path.dirname(cfgs + fname1)
-                if not os.path.exists(pathname) and pathname != "":
-                    os.makedirs(pathname)
-                data = zfile.read(fname)
-                fo = open(cfgs + fname1, "wb")
-                fo.write(data)
-                fo.close()
+                if fname.endswith('/'):
+                    pathname = os.path.dirname(cfgs + fname1)
+                    if not os.path.exists(pathname) and pathname != "":
+                        os.makedirs(pathname)
+                else:
+                    data = zfile.read(fname)
+                    fo = open(cfgs + fname1, "wb")
+                    fo.write(data)
+                    fo.close()
         zfile.close()
         if os.path.exists(cfgs + finame):
             try:
-                _thread.start_new(update_bot, finame)
+                _thread.start_new(update_bot, (finame,))
             except Exception as e:
                 print(e)
         return str({'state': "successful",
@@ -125,6 +127,7 @@ def update():
 
 def update_bot(finame):
     bots_factor[finame] = Bot(cfgs + finame)
+    print("complete")
 
 
 @app.route("/getDialogRecord")
