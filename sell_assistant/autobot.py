@@ -152,7 +152,7 @@ def check_dialog_record():
             with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
                 for k, v in data.items():
-                    stage = file.split('.')[0] + '' + k
+                    stage = (file.split('.')[0] + '' + k)
                     sentence = v['sentence']
                     name = trick + get_hash_code(sentence) + '.pcm'
                     domain_file_info.update({stage: sentence})
@@ -170,8 +170,9 @@ def check_dialog_record():
                     writer.writerow([stage, sentence, name])
         qa.close()
     response.mimetype = 'text/csv'
+    response.charset = 'gbk'
     response.headers = {'Content-disposition': 'attachment; filename=' + trick +
-                                               datetime.datetime.today().strftime('%Y%m%d') + '.csv'}
+                                               datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
     return response
 
 
