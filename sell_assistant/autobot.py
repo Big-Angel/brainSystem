@@ -1,10 +1,15 @@
 # -*- coding:utf-8 -*-
+import csv
+import json
 import os
 import zipfile
+import datetime
+from flask import Response
 
 from bot import Bot
 from flask import Flask, request
 from flask_cors import CORS
+from utils.hashcode import get_hash_code
 import _thread
 
 app = Flask(__name__)
@@ -91,37 +96,83 @@ def start():
 @app.route("/update", methods=['POST'])
 def update():
     zip_file = request.files["file"]
-    fname1 = ''
     if zip_file.filename.split('.')[1] == 'zip':
         zfile = zipfile.ZipFile(zip_file, 'r')
-        finame = zfile.namelist()[0]
-        if zip_file.filename.split('.')[0] != finame.split('/')[0]:
-            finame = finame.encode("cp437").decode("utf-8")
-
+        finame = zfile.namelist()[0].split('/')[0].encode("cp437").decode("utf-8")
         for fname in zfile.namelist():
-            if zip_file.filename.split('.')[0] != fname.split('/')[0]:
+            if fname.find('.DS_Store') < 0 and fname.find('__MACOSX') < 0:
                 fname1 = fname.encode("cp437").decode("utf-8")
-            else:
-                fname1 = fname
-            if fname1.find('__MACOSX') < 0:
                 pathname = os.path.dirname(cfgs + fname1)
                 if not os.path.exists(pathname) and pathname != "":
                     os.makedirs(pathname)
                 data = zfile.read(fname)
-                if not os.path.exists(cfgs + fname1):
-                    fo = open(fname1, "wb")
-                    fo.write(data)
-                    fo.close
+                fo = open(cfgs + fname1, "wb")
+                fo.write(data)
+                fo.close()
         zfile.close()
         if os.path.exists(cfgs + finame):
-            _thread.start_new(updatebot, finame)
-        return "successful"
+            try:
+                _thread.start_new(update_bot, finame)
+            except Exception as e:
+                print(e)
+        return str({'state': "successful",
+                    'sentence': "上传成功"})
+
     else:
-        return 'not zip'
+        return str({'state': 'error',
+                    'sentence': 'not zip'})
 
 
-def updatebot(finame):
+def update_bot(finame):
     bots_factor[finame] = Bot(cfgs + finame)
+
+
+@app.route("/getDialogRecord")
+def check_dialog_record():
+    response = Response()
+    trick = request.args.get("trick")
+    if trick is None:
+        return str({
+            "state": "error",
+            "sentence": "parameter [trick] not exist."
+        })
+    file_names = os.listdir(cfgs)
+    if trick not in file_names:
+        return str({
+            "state": "error",
+            "sentence": "not exist [trick]."
+        })
+    else:
+        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file_info = {}
+        writer = csv.writer(response.stream)
+        fileHeader = ['场景', '话术文本', '录音名']
+        writer.writerow(fileHeader)
+        for file in domain_file:
+            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+                data = json.load(json_file)
+                for k, v in data.items():
+                    stage = file.split('.')[0] + '' + k
+                    sentence = v['sentence']
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    domain_file_info.update({stage: sentence})
+                    writer.writerow([stage, sentence, name])
+            json_file.close()
+        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+            data = json.load(qa)
+            for k, v in data.items():
+                stage1 = 'qa' + k
+                sentence1 = v['sentence']
+                for k, v in domain_file_info.items():
+                    stage = stage1 + k
+                    sentence = sentence1 + v
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    writer.writerow([stage, sentence, name])
+        qa.close()
+    response.mimetype = 'text/csv'
+    response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                               datetime.datetime.today().strftime('%Y%m%d') + '.csv'}
+    return response
 
 
 if __name__ == '__main__':
