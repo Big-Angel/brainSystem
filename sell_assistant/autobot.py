@@ -178,5 +178,14 @@ def check_dialog_record():
     return response
 
 
+@app.route("/getTrick")
+def get_trick():
+    finames = []
+    for filename in os.listdir('../cfgs/'):
+        finames.append(filename)
+    return str({'status': 'successful',
+                'result': finames})
+
+
 if __name__ == '__main__':
     app.run('0.0.0.0', 5000)
