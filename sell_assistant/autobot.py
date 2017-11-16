@@ -167,13 +167,13 @@ def check_dialog_record():
                 stage1 = 'qa' + k
                 sentence1 = v['sentence']
                 for k, v in domain_file_info.items():
-                    stage = stage1 + k
+                    stage = stage1 + '+' + k
                     sentence = sentence1 + v
                     name = trick + get_hash_code(sentence) + '.pcm'
                     writer.writerow([stage, sentence, name])
         qa.close()
     response.mimetype = 'text/csv'
-    response.charset = 'gbk'
+    response.charset = 'UTF-8'
     response.headers = {'Content-disposition': 'attachment; filename=' + trick +
                                                datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
     return response
