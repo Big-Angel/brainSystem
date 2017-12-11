@@ -3,10 +3,10 @@ from attr_classifier.keyword import KeywordClassifier
 
 
 class Sentence:
-    def __init__(self, domain_name, cfg, global_hook=None):
-        self.domain_name = domain_name
-        self.id = cfg[0]
-        self.cfg = cfg[1]
+    def __init__(self, domain_name, cfg, global_hook=None):  # global_hook:全局关键词 cfg:json文件内容
+        self.domain_name = domain_name  # e.g.: domain_name = "了解情况"
+        self.id = cfg[0]  # e.g.: 1
+        self.cfg = cfg[1]  # e.g.: {"sentence":..."next":..."default":...}
         self._init_sentence()
         self.clf = KeywordClassifier()
         self._init_global_hook(global_hook)
@@ -22,8 +22,9 @@ class Sentence:
                 global_hook[self.domain_name + attr_name] = attr_cfg
 
     def _init_jieba(self):
+        # 迭代，把当前domain中next下面的所有的关键字都加到jieba字典里
         for attr_name, attr_cfg in self.next.items():
-            keywords = attr_cfg.get('keywords', [])
+            keywords = attr_cfg.get('keywords', [])  # 如果keyword不存在，则返回一个空列表
             if isinstance(keywords, str):
                 keywords = keywords.split(' ')
             """["楼盘,价格", "价格"]"""
@@ -33,6 +34,7 @@ class Sentence:
                     jieba.add_word(keyword)
 
     def say(self):
+        # 返回json中的sentence
         return self.sentence
 
     def get_branch(self, branch):
