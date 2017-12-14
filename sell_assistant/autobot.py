@@ -11,6 +11,8 @@ from flask import Flask, request
 from flask_cors import CORS
 from utils.hashcode import get_hash_code
 import _thread
+import requests
+import hashlib
 
 app = Flask(__name__)
 CORS(app)
@@ -20,8 +22,17 @@ bots_factor = {}
 cfgs = '../cfgs/'
 
 # TODO 加载所有话术内容，key-value: '话术编号':'话术bot'
-for filename in os.listdir('../cfgs/'):
-    bots_factor[filename] = Bot('../cfgs/' + filename)
+TRICKS_PATH = "../cfgs/tricks/"
+AUTOSERVICE_HOST = "http://localhost:8082"
+AUTOSERVISE_TRICK_UPDATE_URL = "/admin/sales-pitches/operate/update"
+m = hashlib.md5()
+m.update("12345678".encode("utf-8"))
+TOKEN = m.hexdigest()
+
+for filename in os.listdir(TRICKS_PATH):
+    # 过滤隐藏文件
+    if not filename.startswith("."):
+        bots_factor[filename] = Bot(TRICKS_PATH + filename)
 
 
 @app.route("/version")
@@ -67,6 +78,12 @@ def start():
             "state": "error",
             "sentence": "parameter [trick] not exist."
         })
+    if trick not in bots_factor:
+        return str({
+            "result": False,
+            "data": "[trick] not exist."
+        })
+
     bot_tmp = bots_factor[trick]
     if bot_tmp is None:
         return str({
@@ -95,39 +112,67 @@ def start():
 
 @app.route("/update", methods=['POST'])
 def update():
-    zip_file = request.files["file"]
-    if zip_file.filename.split('.')[1] == 'zip':
-        zfile = zipfile.ZipFile(zip_file, 'r')
-        finame = zfile.namelist()[0].split('/')[0].encode("cp437").decode("utf-8")
-        for fname in zfile.namelist():
-            if fname.find('.DS_Store') < 0 and fname.find('__MACOSX') < 0:
-                fname1 = fname.encode("cp437").decode("utf-8")
-                if fname.endswith('/'):
-                    pathname = os.path.dirname(cfgs + fname1)
-                    if not os.path.exists(pathname) and pathname != "":
-                        os.makedirs(pathname)
-                else:
-                    data = zfile.read(fname)
-                    fo = open(cfgs + fname1, "wb")
-                    fo.write(data)
-                    fo.close()
-        zfile.close()
-        if os.path.exists(cfgs + finame):
-            try:
-                _thread.start_new(update_bot, (finame,))
-            except Exception as e:
-                print(e)
-        return str({'state': "successful",
-                    'sentence': "上传成功"})
+    try:
+        zip_file = request.files["file"]
+        trick_name = request.form["trick"]
+        trick_no = request.form["trickNo"]
 
-    else:
-        return str({'state': 'error',
-                    'sentence': 'not zip'})
+        if "recall_addr" in request.form.keys:
+            AUTOSERVICE_HOST = request.form["recall_addr"]
+
+        if zip_file.filename.split('.')[1] == 'zip':
+            zfile = zipfile.ZipFile(zip_file, 'r')
+            finame = trick_name
+            for fname in zfile.namelist():
+                if fname.find('.DS_Store') < 0 and fname.find('__MACOSX') < 0:
+                    fname1 = fname.encode("cp437").decode("utf-8")
+                    if fname.endswith('/'):
+                        pathname = os.path.dirname(TRICKS_PATH + fname1)
+                        if not os.path.exists(pathname) and pathname != "":
+                            os.makedirs(pathname)
+                    else:
+                        data = zfile.read(fname)
+                        fo = open(TRICKS_PATH + fname1, "wb")
+                        fo.write(data)
+                        fo.close()
+            zfile.close()
+
+            if os.path.exists(TRICKS_PATH + finame):
+                try:
+                    _thread.start_new(update_bot, (finame, trick_no))
+                except Exception as e:
+                    # 出现异常，更新失败
+                    update_trick(trick_no, False)
+                    print(e)
+
+            return str({'result': True,
+                        'data': "update success"})
+
+        else:
+            return str({'result': False,
+                        'data': "update error"})
+
+    except Exception as e:
+        return str({'result': False,
+                    'data': e})
 
 
-def update_bot(finame):
-    bots_factor[finame] = Bot(cfgs + finame)
+def update_bot(finame, trick_no):
+    bots_factor[finame] = Bot(TRICKS_PATH + finame)
     print("complete")
+    update_trick(trick_no, True)
+
+
+def update_trick(trick_no, is_success):
+    if not isinstance(is_success, bool):
+        is_success = False
+
+    headers = {"token": TOKEN}
+    params = {
+        "salesPitchNo": trick_no,
+        "isUpdate": is_success
+    }
+    requests.post(AUTOSERVICE_HOST + AUTOSERVISE_TRICK_UPDATE_URL, params=params, headers=headers)
 
 
 @app.route("/getDialogRecord")
@@ -151,6 +196,8 @@ def check_dialog_record():
         writer = csv.writer(response.stream)
         fileHeader = ['场景', '话术文本', '录音名']
         writer.writerow(fileHeader)
+        writer.writerow(["开场声音", "喂？您好～", trick + get_hash_code("喂？您好～") + '.pcm'])
+        writer.writerow(["等待超时", "您能听的清楚么", trick + get_hash_code("您能听的清楚么") + '.pcm'])
         for file in domain_file:
             with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
