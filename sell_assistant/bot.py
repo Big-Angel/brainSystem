@@ -3,6 +3,7 @@ import os
 from graph.graph import Graph
 from utils.io import load_json
 from attr_classifier.keyword import KeywordClassifier
+from analyst.analyst import Analyst
 
 
 class Bot:
@@ -16,9 +17,12 @@ class Bot:
         self.latest_response = ""
         self.global_events_cfg_path = os.path.join(self.cfg_path, 'global_events')
 
+        self.conversations = []
+
         # class instance.
         self.graph = Graph(self.cfg_path, self.init_sentence)
         self.global_events = self._init_global_events()
+        self.analyst = Analyst(self.cfg_path)
 
     def reset(self):
         return copy.deepcopy(self)
@@ -29,15 +33,19 @@ class Bot:
     def answer(self, sentence=None, init=False):
         if not sentence and init:
             self.latest_response = self.graph.say(self.init_sentence)
+            self.conversations.append([self.latest_response])
             return self.latest_response
         else:
             """global event"""
             event = self.global_events.answer(sentence)
             if event:
-                return self.global_events_action(event)
+                response = self.global_events_action(event)
+                self.conversations.append([sentence, response])
+                return response
             else:
                 """按照流程走"""
                 self.latest_response = self.graph.answer(sentence)
+                self.conversations.append([sentence, self.latest_response])
                 return self.latest_response
 
     def _init_global_events(self):
@@ -52,6 +60,9 @@ class Bot:
             return self.graph.say(self.invite_sentence)
         if event == "结束":
             return self.graph.say(self.end_sentence)
+
+    def get_label(self):
+        return self.analyst.analyze(self.conversations)
 
 
 class GlobalEvent:
