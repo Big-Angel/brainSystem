@@ -117,7 +117,7 @@ def update():
         trick_name = request.form["trick"]
         trick_no = request.form["trickNo"]
 
-        if "recall_addr" in request.form.keys:
+        if "recall_addr" in request.form.keys():
             AUTOSERVICE_HOST = request.form["recall_addr"]
 
         if zip_file.filename.split('.')[1] == 'zip':
@@ -154,7 +154,7 @@ def update():
 
     except Exception as e:
         return str({'result': False,
-                    'data': e})
+                    'data': str(e)})
 
 
 def update_bot(finame, trick_no):
