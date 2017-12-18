@@ -113,6 +113,7 @@ def start():
 @app.route("/update", methods=['POST'])
 def update():
     try:
+        global AUTOSERVICE_HOST
         zip_file = request.files["file"]
         trick_name = request.form["trick"]
         trick_no = request.form["trickNo"]
