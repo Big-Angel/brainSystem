@@ -1,3 +1,5 @@
 *.csv
 *.log
-.idea/
+.idea
+cfgs/walkyren/stat/
+.gitignore
