@@ -19,7 +19,6 @@ CORS(app)
 
 bots = {}
 bots_factor = {}
-cfgs = '../cfgs/'
 
 # TODO 加载所有话术内容，key-value: '话术编号':'话术bot'
 TRICKS_PATH = "../cfgs/tricks/"
@@ -185,14 +184,14 @@ def check_dialog_record():
             "state": "error",
             "sentence": "parameter [trick] not exist."
         })
-    file_names = os.listdir(cfgs)
+    file_names = os.listdir(TRICKS_PATH)
     if trick not in file_names:
         return str({
             "state": "error",
             "sentence": "not exist [trick]."
         })
     else:
-        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file = os.listdir(TRICKS_PATH + '/' + trick + '/domain/')
         domain_file_info = {}
         writer = csv.writer(response.stream)
         fileHeader = ['场景', '话术文本', '录音名']
@@ -200,7 +199,7 @@ def check_dialog_record():
         writer.writerow(["开场声音", "喂？您好～", trick + get_hash_code("喂？您好～") + '.pcm'])
         writer.writerow(["等待超时", "您能听的清楚么", trick + get_hash_code("您能听的清楚么") + '.pcm'])
         for file in domain_file:
-            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+            with open(TRICKS_PATH + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
                 for k, v in data.items():
                     stage = (file.split('.')[0] + '' + k)
@@ -209,7 +208,7 @@ def check_dialog_record():
                     domain_file_info.update({stage: sentence})
                     writer.writerow([stage, sentence, name])
             json_file.close()
-        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+        with open(TRICKS_PATH + '/' + trick + '/qa/qa.json') as qa:
             data = json.load(qa)
             for k, v in data.items():
                 stage1 = 'qa' + k
