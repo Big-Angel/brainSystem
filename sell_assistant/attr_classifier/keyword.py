@@ -1,3 +1,4 @@
+# coding=utf-8
 import re
 import jieba
 from jieba.analyse.tfidf import TFIDF
@@ -12,6 +13,7 @@ class KeywordClassifier:
     def attrs_match(self, attrs, user_sentence):
         max_score = -1
         """totally match"""
+        # 先匹配samples，再匹配patterns（正则），最后匹配关键字
         for attr_name, attr_cfg in attrs.items():
             samples = attr_cfg.get('samples', [])
             if isinstance(samples, str):

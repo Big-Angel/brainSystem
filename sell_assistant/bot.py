@@ -28,6 +28,7 @@ class Bot:
 
     def answer(self, sentence=None, init=False):
         if not sentence and init:
+            """初始化"""
             self.latest_response = self.graph.say(self.init_sentence)
             return self.latest_response
         else:
