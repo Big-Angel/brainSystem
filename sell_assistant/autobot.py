@@ -4,7 +4,12 @@ import json
 import os
 import zipfile
 import datetime
+
+import xlsxwriter
+import io
+
 from flask import Response
+from werkzeug.wrappers import ResponseStream
 
 from bot import Bot
 from flask import Flask, request
@@ -295,7 +300,7 @@ def get_dialog_record():
             response.charset = 'gbk'
             response.headers = {'Content-disposition': 'attachment; filename=' + trick +
                                                        datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
-        elif file_format == "excel":
+        elif file_format == "xls":
             wb = xlwt.Workbook()
             sheet = wb.add_sheet("1")
             for i in range(len(rows)):
@@ -307,6 +312,21 @@ def get_dialog_record():
             response.charset = 'gbk'
             response.headers = {'Content-disposition': 'attachment; filename=' + trick +
                                                        datetime.datetime.today().strftime('%Y%m%d') + '.xls;'}
+        elif file_format == "xlsx":
+            output = io.BytesIO()
+            wb = xlsxwriter.Workbook(output, {'in_memory': True})
+            sheet = wb.add_worksheet()
+            for i in range(len(rows)):
+                sheet.write(i, 0, rows[i][0])
+                sheet.write(i, 1, rows[i][1])
+                sheet.write(i, 2, rows[i][2])
+            wb.close()
+            output.seek(0)
+            response.stream.write(output.read())
+            response.mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.xlsx;'}
         else:
             return str({
                 "state": "error",
