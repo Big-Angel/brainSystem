@@ -60,8 +60,15 @@ def reply():
     state, sentence = bots[session].answer(user_input)
 
     if '结束' in state:
-        print("level:" + bots[session].get_label())
+        rate = bots[session].get_label()
+        print("level:" + rate)
         bots.pop(session)
+        # 结束阶段返回对应的意向登记评分
+        return str({
+            "state": state,
+            "sentence": sentence,
+            "rate": rate,
+        })
 
     return str({
         "state": state,
@@ -230,7 +237,7 @@ def check_dialog_record():
 @app.route("/getTrick")
 def get_trick():
     finames = []
-    for filename in os.listdir('../cfgs/'):
+    for filename in os.listdir(TRICKS_PATH):
         finames.append(filename)
     return str({'status': 'successful',
                 'result': finames})
@@ -246,20 +253,20 @@ def get_dialog_record():
             "state": "error",
             "sentence": "parameter [trick] not exist."
         })
-    file_names = os.listdir(cfgs)
+    file_names = os.listdir(TRICKS_PATH)
     if trick not in file_names:
         return str({
             "state": "error",
             "sentence": "not exist [trick]."
         })
     else:
-        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file = os.listdir(TRICKS_PATH + '/' + trick + '/domain/')
         domain_file_info = {}
         fileHeader = ['场景', '话术文本', '录音名']
         rows = []
         rows.append(fileHeader)
         for file in domain_file:
-            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+            with open(TRICKS_PATH + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
                 for k, v in data.items():
                     stage = (file.split('.')[0] + '' + k)
@@ -268,7 +275,7 @@ def get_dialog_record():
                     domain_file_info.update({stage: sentence})
                     rows.append([stage, sentence, name])
             json_file.close()
-        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+        with open(TRICKS_PATH + '/' + trick + '/qa/qa.json') as qa:
             data = json.load(qa)
             for k, v in data.items():
                 stage1 = 'qa' + k
