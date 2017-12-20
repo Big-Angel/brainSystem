@@ -4,12 +4,18 @@ import json
 import os
 import zipfile
 import datetime
+
+import xlsxwriter
+import io
+
 from flask import Response
+from werkzeug.wrappers import ResponseStream
 
 from bot import Bot
 from flask import Flask, request
 from flask_cors import CORS
 from utils.hashcode import get_hash_code
+import xlwt
 import _thread
 import requests
 import hashlib
@@ -19,7 +25,6 @@ CORS(app)
 
 bots = {}
 bots_factor = {}
-cfgs = '../cfgs/'
 
 # TODO 加载所有话术内容，key-value: '话术编号':'话术bot'
 TRICKS_PATH = "../cfgs/tricks/"
@@ -60,8 +65,15 @@ def reply():
     state, sentence = bots[session].answer(user_input)
 
     if '结束' in state:
-        print("level:" + bots[session].get_label())
+        rate = bots[session].get_label()
+        print("level:" + rate)
         bots.pop(session)
+        # 结束阶段返回对应的意向登记评分
+        return str({
+            "state": state,
+            "sentence": sentence,
+            "rate": rate,
+        })
 
     return str({
         "state": state,
@@ -113,11 +125,12 @@ def start():
 @app.route("/update", methods=['POST'])
 def update():
     try:
+        global AUTOSERVICE_HOST
         zip_file = request.files["file"]
         trick_name = request.form["trick"]
         trick_no = request.form["trickNo"]
 
-        if "recall_addr" in request.form.keys:
+        if "recall_addr" in request.form.keys():
             AUTOSERVICE_HOST = request.form["recall_addr"]
 
         if zip_file.filename.split('.')[1] == 'zip':
@@ -154,7 +167,7 @@ def update():
 
     except Exception as e:
         return str({'result': False,
-                    'data': e})
+                    'data': str(e)})
 
 
 def update_bot(finame, trick_no):
@@ -184,14 +197,14 @@ def check_dialog_record():
             "state": "error",
             "sentence": "parameter [trick] not exist."
         })
-    file_names = os.listdir(cfgs)
+    file_names = os.listdir(TRICKS_PATH)
     if trick not in file_names:
         return str({
             "state": "error",
             "sentence": "not exist [trick]."
         })
     else:
-        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file = os.listdir(TRICKS_PATH + '/' + trick + '/domain/')
         domain_file_info = {}
         writer = csv.writer(response.stream)
         fileHeader = ['场景', '话术文本', '录音名']
@@ -199,7 +212,7 @@ def check_dialog_record():
         writer.writerow(["开场声音", "喂？您好～", trick + get_hash_code("喂？您好～") + '.pcm'])
         writer.writerow(["等待超时", "您能听的清楚么", trick + get_hash_code("您能听的清楚么") + '.pcm'])
         for file in domain_file:
-            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+            with open(TRICKS_PATH + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
                 for k, v in data.items():
                     stage = (file.split('.')[0] + '' + k)
@@ -208,7 +221,7 @@ def check_dialog_record():
                     domain_file_info.update({stage: sentence})
                     writer.writerow([stage, sentence, name])
             json_file.close()
-        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+        with open(TRICKS_PATH + '/' + trick + '/qa/qa.json') as qa:
             data = json.load(qa)
             for k, v in data.items():
                 stage1 = 'qa' + k
@@ -223,6 +236,103 @@ def check_dialog_record():
     response.charset = 'UTF-8'
     response.headers = {'Content-disposition': 'attachment; filename=' + trick +
                                                datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
+    return response
+
+
+@app.route("/getTrick")
+def get_trick():
+    finames = []
+    for filename in os.listdir(TRICKS_PATH):
+        finames.append(filename)
+    return str({'status': 'successful',
+                'result': finames})
+
+
+@app.route("/get_dialog_record")
+def get_dialog_record():
+    response = Response()
+    trick = request.args.get("trick")
+    file_format = request.args.get("file_format")
+    if trick is None:
+        return str({
+            "state": "error",
+            "sentence": "parameter [trick] not exist."
+        })
+    file_names = os.listdir(TRICKS_PATH)
+    if trick not in file_names:
+        return str({
+            "state": "error",
+            "sentence": "not exist [trick]."
+        })
+    else:
+        domain_file = os.listdir(TRICKS_PATH + '/' + trick + '/domain/')
+        domain_file_info = {}
+        fileHeader = ['场景', '话术文本', '录音名']
+        rows = []
+        rows.append(fileHeader)
+        for file in domain_file:
+            with open(TRICKS_PATH + '/' + trick + '/domain/' + file) as json_file:
+                data = json.load(json_file)
+                for k, v in data.items():
+                    stage = (file.split('.')[0] + '' + k)
+                    sentence = v['sentence']
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    domain_file_info.update({stage: sentence})
+                    rows.append([stage, sentence, name])
+            json_file.close()
+        with open(TRICKS_PATH + '/' + trick + '/qa/qa.json') as qa:
+            data = json.load(qa)
+            for k, v in data.items():
+                stage1 = 'qa' + k
+                sentence1 = v['sentence']
+                for k, v in domain_file_info.items():
+                    stage = stage1 + k
+                    sentence = sentence1 + v
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    rows.append([stage, sentence, name])
+        qa.close()
+
+        if file_format == "csv":
+            writer = csv.writer(response.stream)
+            for i in rows:
+                writer.writerow(i)
+            response.mimetype = 'text/csv'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
+        elif file_format == "xls":
+            wb = xlwt.Workbook()
+            sheet = wb.add_sheet("1")
+            for i in range(len(rows)):
+                sheet.write(i, 0, rows[i][0])
+                sheet.write(i, 1, rows[i][1])
+                sheet.write(i, 2, rows[i][2])
+            wb.save(response.stream)
+            response.mimetype = 'application/x-xls'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.xls;'}
+        elif file_format == "xlsx":
+            output = io.BytesIO()
+            wb = xlsxwriter.Workbook(output, {'in_memory': True})
+            sheet = wb.add_worksheet()
+            for i in range(len(rows)):
+                sheet.write(i, 0, rows[i][0])
+                sheet.write(i, 1, rows[i][1])
+                sheet.write(i, 2, rows[i][2])
+            wb.close()
+            output.seek(0)
+            response.stream.write(output.read())
+            response.mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.xlsx;'}
+        else:
+            return str({
+                "state": "error",
+                "sentence": "no this file format."
+            })
+
     return response
 
 
