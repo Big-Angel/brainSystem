@@ -10,6 +10,7 @@ from bot import Bot
 from flask import Flask, request
 from flask_cors import CORS
 from utils.hashcode import get_hash_code
+import xlwt
 import _thread
 import requests
 import hashlib
@@ -223,6 +224,88 @@ def check_dialog_record():
     response.charset = 'UTF-8'
     response.headers = {'Content-disposition': 'attachment; filename=' + trick +
                                                datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
+    return response
+
+
+@app.route("/getTrick")
+def get_trick():
+    finames = []
+    for filename in os.listdir('../cfgs/'):
+        finames.append(filename)
+    return str({'status': 'successful',
+                'result': finames})
+
+
+@app.route("/get_dialog_record")
+def get_dialog_record():
+    response = Response()
+    trick = request.args.get("trick")
+    file_format = request.args.get("file_format")
+    if trick is None:
+        return str({
+            "state": "error",
+            "sentence": "parameter [trick] not exist."
+        })
+    file_names = os.listdir(cfgs)
+    if trick not in file_names:
+        return str({
+            "state": "error",
+            "sentence": "not exist [trick]."
+        })
+    else:
+        domain_file = os.listdir(cfgs + '/' + trick + '/domain/')
+        domain_file_info = {}
+        fileHeader = ['场景', '话术文本', '录音名']
+        rows = []
+        rows.append(fileHeader)
+        for file in domain_file:
+            with open(cfgs + '/' + trick + '/domain/' + file) as json_file:
+                data = json.load(json_file)
+                for k, v in data.items():
+                    stage = (file.split('.')[0] + '' + k)
+                    sentence = v['sentence']
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    domain_file_info.update({stage: sentence})
+                    rows.append([stage, sentence, name])
+            json_file.close()
+        with open(cfgs + '/' + trick + '/qa/qa.json') as qa:
+            data = json.load(qa)
+            for k, v in data.items():
+                stage1 = 'qa' + k
+                sentence1 = v['sentence']
+                for k, v in domain_file_info.items():
+                    stage = stage1 + k
+                    sentence = sentence1 + v
+                    name = trick + get_hash_code(sentence) + '.pcm'
+                    rows.append([stage, sentence, name])
+        qa.close()
+
+        if file_format == "csv":
+            writer = csv.writer(response.stream)
+            for i in rows:
+                writer.writerow(i)
+            response.mimetype = 'text/csv'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.csv;'}
+        elif file_format == "excel":
+            wb = xlwt.Workbook()
+            sheet = wb.add_sheet("1")
+            for i in range(len(rows)):
+                sheet.write(i, 0, rows[i][0])
+                sheet.write(i, 1, rows[i][1])
+                sheet.write(i, 2, rows[i][2])
+            wb.save(response.stream)
+            response.mimetype = 'application/x-xls'
+            response.charset = 'gbk'
+            response.headers = {'Content-disposition': 'attachment; filename=' + trick +
+                                                       datetime.datetime.today().strftime('%Y%m%d') + '.xls;'}
+        else:
+            return str({
+                "state": "error",
+                "sentence": "no this file format."
+            })
+
     return response
 
 

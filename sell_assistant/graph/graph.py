@@ -24,11 +24,17 @@ class Graph:
     g_init_sentence = None
 
     def __init__(self, cfg_path, init_sentence="开场白:1"):
+        # 获得graph文件夹的路径
         self.graph_cfg_path = os.path.join(cfg_path, 'graph')
+        # 获得domain文件夹的路径
         self.domains_cfg_path = os.path.join(cfg_path, 'domain')
+        # 获得qa文件夹的路径
         self.qa_cfg_path = os.path.join(cfg_path, 'qa')
+        # 返回一个主流程列表，例如：["开场白", "了解情况", "邀约", "结束"]
         self.flow = self._init_mainflow()
+        # 全局关键字
         self.global_hook = {}
+        # 初始化domain
         self.domains = self._init_domains()
         self.qa = self._init_qa()
         self.current_sentence = init_sentence
@@ -49,6 +55,7 @@ class Graph:
         return load_json(os.path.join(self.graph_cfg_path, 'graph.json')).get('flow')
 
     def _init_domains(self):
+        """初始化domain，返回一个"""
         domains = {}
         domain_cfgs = os.listdir(self.domains_cfg_path)
         for cfg in domain_cfgs:
