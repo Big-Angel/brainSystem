@@ -39,10 +39,10 @@ for filename in os.listdir(TRICKS_PATH):
         bots_factor[filename] = Bot(TRICKS_PATH + filename)
 
 rateMap = {
-    'A': 1,
-    'B': 2,
-    'C': 3,
-    'D': 4,
+    'A': 1000,
+    'B': 100,
+    'C': 10,
+    'D': 1,
 }
 
 @app.route("/version")
