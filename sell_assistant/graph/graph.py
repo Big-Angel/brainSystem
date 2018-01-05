@@ -39,6 +39,7 @@ class Graph:
         self.qa = self._init_qa()
         self.current_sentence = init_sentence
         self.saved_sentence_idx = init_sentence
+        self.next_say = None  # 存储下一句话，不连续讲的需求
         Graph.g_init_sentence = init_sentence
 
     def __deepcopy__(self, memodict=None):
@@ -70,18 +71,33 @@ class Graph:
     def answer(self, user_sentence):
         """global QA"""
         global_response = self.qa.answer(user_sentence)
+        if not global_response and self.next_say:
+            state, response = self.next_say
+            self.next_say = None
+            return state, response
         """domain回答的流程"""
-        domain_name, sentence_id = self.current_sentence.split(':')
-        sentence_idx = self.domains[domain_name].answer(sentence_id, user_sentence, self.global_hook)
+        if global_response:
+            """如果是全局回答，那么下一句话就是当前句子的pos分支"""
+            state, graph_response = self.say(self._get_sentence_idx(self.current_sentence, 'pos'))
+            self.next_say = (state, graph_response)
+            sentence_idx = state
+        else:
+            domain_name, sentence_id = self.current_sentence.split(':')
+            sentence_idx = self.domains[domain_name].answer(sentence_id, user_sentence, self.global_hook)
+
         if '挽回' not in sentence_idx and '恢复' not in sentence_idx:
             self.saved_sentence_idx = sentence_idx
 
         if '恢复' in sentence_idx:
             state, graph_response = self.say(self._get_sentence_idx(self.saved_sentence_idx, 'pos'))
-            return state, global_response + graph_response if global_response else graph_response
+            if global_response:
+                self.next_say = state, graph_response
+            return state, global_response if global_response else graph_response
         else:
             state, graph_response = self.say(sentence_idx)
-            return state, global_response + graph_response if global_response else graph_response
+            if global_response:
+                self.next_say = state, graph_response
+            return state, global_response if global_response else graph_response
 
     def say(self, sentence_idx):
         self.current_sentence = sentence_idx
