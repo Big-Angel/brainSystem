@@ -78,9 +78,12 @@ class Graph:
         """domain回答的流程"""
         if global_response:
             """如果是全局回答，那么下一句话就是当前句子的pos分支"""
-            state, graph_response = self.say(self._get_sentence_idx(self.current_sentence, 'pos'))
-            self.next_say = (state, graph_response)
-            sentence_idx = state
+            if not self.next_say:
+                state, graph_response = self.say(self._get_sentence_idx(self.current_sentence, 'pos'))
+                self.next_say = (state, graph_response)
+                sentence_idx = state
+            else:
+                sentence_idx = self.next_say[0]
         else:
             domain_name, sentence_id = self.current_sentence.split(':')
             sentence_idx = self.domains[domain_name].answer(sentence_id, user_sentence, self.global_hook)
