@@ -301,12 +301,9 @@ def get_dialog_record():
             data = json.load(qa)
             for k, v in data.items():
                 stage1 = 'qa' + k
-                sentence1 = v['sentence']
-                for k, v in domain_file_info.items():
-                    stage = stage1 + "+" + k
-                    sentence = sentence1 + v
-                    name = trick + get_hash_code(sentence) + '.pcm'
-                    rows.append([stage, sentence, name])
+                sentence = v['sentence']
+                name = trick + get_hash_code(sentence) + '.pcm'
+                rows.append([stage1, sentence, name])
         qa.close()
 
         if file_format == "csv":
