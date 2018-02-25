@@ -9,7 +9,6 @@ import xlsxwriter
 import io
 
 from flask import Response
-from werkzeug.wrappers import ResponseStream
 
 from bot import Bot
 from flask import Flask, request
@@ -39,10 +38,16 @@ for filename in os.listdir(TRICKS_PATH):
     if not filename.startswith("."):
         bots_factor[filename] = Bot(TRICKS_PATH + filename)
 
+rateMap = {
+    'A': 1000,
+    'B': 100,
+    'C': 10,
+    'D': 1,
+}
 
 @app.route("/version")
 def version():
-    return "v1.0.4"
+    return "v1.0.5"
 
 
 @app.route("/goon")
@@ -56,6 +61,12 @@ def reply():
             "sentence": "[session] not exist, please check it on"
         })
 
+    if user_input is None:
+        return str({
+            "state": "error",
+            "sentence": "[user_word] not exist, please check it on"
+        })
+
     if session not in bots.keys():
         return str({
             "state": "结束",
@@ -63,21 +74,22 @@ def reply():
         })
 
     state, sentence = bots[session].answer(user_input)
+    rate = bots[session].get_label()
 
     if '结束' in state:
-        rate = bots[session].get_label()
         print("level:" + rate)
         bots.pop(session)
         # 结束阶段返回对应的意向登记评分
         return str({
             "state": state,
             "sentence": sentence,
-            "rate": rate,
+            "rate": rateMap[rate],
         })
 
     return str({
         "state": state,
-        'sentence': sentence
+        'sentence': sentence,
+        'rate': rateMap[rate]
     })
 
 
@@ -115,10 +127,12 @@ def start():
     bots[session] = bot
 
     state, sentence = bot.start()
+    rate = bot.get_label()
 
     return str({
         "state": state,
-        'sentence': sentence
+        'sentence': sentence,
+        'rate': rateMap[rate]
     })
 
 
@@ -270,6 +284,9 @@ def get_dialog_record():
         fileHeader = ['场景', '话术文本', '录音名']
         rows = []
         rows.append(fileHeader)
+        rows.append(["开场声音", "喂？您好～", trick + get_hash_code("喂？您好～") + '.pcm'])
+        rows.append(["等待超时", "您能听的清楚么", trick + get_hash_code("您能听的清楚么") + '.pcm'])
+
         for file in domain_file:
             with open(TRICKS_PATH + '/' + trick + '/domain/' + file) as json_file:
                 data = json.load(json_file)
@@ -284,12 +301,9 @@ def get_dialog_record():
             data = json.load(qa)
             for k, v in data.items():
                 stage1 = 'qa' + k
-                sentence1 = v['sentence']
-                for k, v in domain_file_info.items():
-                    stage = stage1 + k
-                    sentence = sentence1 + v
-                    name = trick + get_hash_code(sentence) + '.pcm'
-                    rows.append([stage, sentence, name])
+                sentence = v['sentence']
+                name = trick + get_hash_code(sentence) + '.pcm'
+                rows.append([stage1, sentence, name])
         qa.close()
 
         if file_format == "csv":
@@ -303,6 +317,7 @@ def get_dialog_record():
         elif file_format == "xls":
             wb = xlwt.Workbook()
             sheet = wb.add_sheet("1")
+            rows.insert(0, ['场景', '话术文本', '录音名'])
             for i in range(len(rows)):
                 sheet.write(i, 0, rows[i][0])
                 sheet.write(i, 1, rows[i][1])
@@ -316,6 +331,7 @@ def get_dialog_record():
             output = io.BytesIO()
             wb = xlsxwriter.Workbook(output, {'in_memory': True})
             sheet = wb.add_worksheet()
+            rows.insert(0, ['场景', '话术文本', '录音名'])
             for i in range(len(rows)):
                 sheet.write(i, 0, rows[i][0])
                 sheet.write(i, 1, rows[i][1])
